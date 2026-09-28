@@ -1,0 +1,26 @@
+# Android / Gradle
+.gradle/
+/build/
+**/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+
+# Generated artifacts
+*.apk
+*.aab
+*.apks
+*.zip
+
+# Large bundled runtimes / native payloads
+*.so
+*.aar
+*.jar
+jre_*/
+
+# Signing / secrets
+*.jks
+*.keystore
+keystore.properties
+.env
