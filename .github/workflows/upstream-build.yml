@@ -1,0 +1,71 @@
+name: FoxyPlayzZ Launcher - upstream build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 'ZalithLauncher branch, tag, or commit to build'
+        required: true
+        default: 'main'
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_REPO: https://github.com/ZalithLauncher/ZalithLauncher.git
+
+jobs:
+  prepare-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout FoxyLauncher configuration
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream ZalithLauncher
+        uses: actions/checkout@v4
+        with:
+          repository: ZalithLauncher/ZalithLauncher
+          ref: ${{ inputs.upstream_ref }}
+          path: upstream
+          fetch-depth: 1
+
+      - name: Apply safe FoxyPlayzZ branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          # Only change human-facing text files/resources when they contain the exact upstream name.
+          # Package names and Java/Kotlin identifiers are intentionally not mass-renamed.
+          grep -RIl --exclude-dir=.git --exclude='*.png' --exclude='*.webp' --exclude='*.so' --exclude='*.aar' 'ZalithLauncher' . \
+            | while read -r f; do
+                sed -i 's/ZalithLauncher/FoxyPlayzZ Launcher/g' "$f"
+              done || true
+
+      - name: Remove oversized bundled runtime payloads from the source artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          find upstream -type d \( -name 'jre_*' -o -name '.gradle' \) -prune -exec rm -rf {} + || true
+          find upstream -type f \( -name '*.so' -o -name '*.aar' \) -delete || true
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x upstream/gradlew
+
+      - name: Build debug APK
+        working-directory: upstream
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FoxyPlayzZ-Launcher-debug
+          path: upstream/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
